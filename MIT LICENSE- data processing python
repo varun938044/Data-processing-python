@@ -1,0 +1,133 @@
+import random
+import csv
+from faker import Faker
+import pandas as pd
+
+fake = Faker()
+
+# Constants for product categories and possible coupons
+categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Toys', 'Sports']
+products = {
+    'Electronics': ['Laptop', 'Smartphone', 'Headphones', 'Camera'],
+    'Clothing': ['T-shirt', 'Jeans', 'Jacket', 'Shoes'],
+    'Home': ['Sofa', 'Coffee Table', 'Chair', 'Lamp'],
+    'Books': ['Fiction', 'Non-fiction', 'Science', 'Biography'],
+    'Toys': ['Lego', 'Doll', 'Puzzle', 'Car'],
+    'Sports': ['Basketball', 'Football', 'Tennis Racket', 'Yoga Mat']
+}
+coupon_codes = ['SAVE10', 'WELCOME15', 'SUMMER20', 'BLACKFRIDAY', 'NEWYEAR25']
+
+# Generate synthetic data
+def generate_order_data(num_orders=100000):
+    data = []
+    for _ in range(num_orders):
+        order_id = fake.uuid4()
+        customer_name = fake.name()
+        order_date = fake.date_this_year()
+        total_price = round(random.uniform(10, 500), 2)
+        discount = round(random.uniform(0, 0.25) * total_price, 2)  # 0% - 25% discount
+        total_after_discount = round(total_price - discount, 2)
+        product_category = random.choice(categories)
+        product_name = random.choice(products[product_category])
+        coupon_code = random.choice(coupon_codes) if random.random() < 0.3 else None
+        cost_price = round(random.uniform(5, total_price - 1), 2)  # cost should be less than price
+
+        data.append({
+            'order_id': order_id,
+            'customer_name': customer_name,
+            'order_date': order_date,
+            'total_price': total_price,
+            'total_discount': discount,
+            'total_after_discount': total_after_discount,
+            'product_category': product_category,
+            'product_name': product_name,
+            'coupon_code': coupon_code,
+            'cost_price': cost_price
+        })
+    return data
+
+# Save data to CSV
+def save_to_csv(data, filename="synthetic_orders.csv"):
+    keys = data[0].keys()
+    with open(filename, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(data)
+
+# Generate 100,000 synthetic orders and save to CSV
+orders = generate_order_data(100000)
+save_to_csv(orders)
+
+print("Data generation complete and saved to 'synthetic_orders.csv'.")
+
+
+//part 2
+
+
+
+pip install streamlit  
+
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load the CSV file with the synthetic data
+@st.cache
+def load_data(file):
+    df = pd.read_csv(file)
+    return df
+
+# Display the dashboard
+def main():
+    st.title("Ecommerce Order Analysis Dashboard")
+
+    # File upload
+    uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+    if uploaded_file is not None:
+        df = load_data(uploaded_file)
+
+        # Show first few rows
+        st.write("Data Preview", df.head())
+
+        # Dashboard Features
+
+        # Daily Profit and Loss
+        st.subheader("Daily Profit / Loss")
+        df['order_date'] = pd.to_datetime(df['order_date'])
+        df['profit'] = df['total_after_discount'] - df['cost_price']
+        daily_profit = df.groupby(df['order_date'].dt.date)['profit'].sum()
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        daily_profit.plot(kind='bar', color='green', ax=ax)
+        ax.set_title('Daily Profit / Loss')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Profit')
+        st.pyplot(fig)
+
+        # Most Popular Products
+        st.subheader("Most Popular Products")
+        popular_products = df['product_name'].value_counts().head(10)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        popular_products.plot(kind='bar', color='blue', ax=ax)
+        ax.set_title('Top 10 Most Popular Products')
+        ax.set_xlabel('Product Name')
+        ax.set_ylabel('Frequency')
+        st.pyplot(fig)
+
+        # Allow filtering by fields
+        st.subheader("Filter Orders")
+        product_filter = st.selectbox('Select Product', df['product_name'].unique())
+        filtered_data = df[df['product_name'] == product_filter]
+        st.write(filtered_data)
+
+        # Fraud Detection Dashboard (Bonus)
+        st.subheader("Potential Fraudulent Orders")
+        # Basic Fraud Detection heuristic: high discount, low cost vs high price
+        fraud_condition = (df['total_discount'] > 0.5 * df['total_price']) & (df['cost_price'] > df['total_after_discount'])
+        potential_fraud = df[fraud_condition]
+        st.write("Potential Fraudulent Orders", potential_fraud)
+
+if _name_ == "_main_":
+    main()      
